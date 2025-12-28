@@ -19,8 +19,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
-    - name: Create local.properties
-      run: echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+    - name: Setup Gradle Wrapper
+      run: |
+        gradle wrapper --gradle-version 8.2
+    
+    - name: Make gradlew executable
+      run: chmod +x gradlew
     
     - name: Create assets directory
       run: mkdir -p app/src/main/assets
@@ -30,26 +34,14 @@ jobs:
         curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
              -o app/src/main/assets/hand_landmarker.task
     
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-    
-    - name: Build with Gradle (direct)
-      run: |
-        export ANDROID_HOME=/usr/local/lib/android/sdk
-        export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
-        cd $GITHUB_WORKSPACE
-        chmod +x gradlew || true
-        if [ -f "gradlew" ]; then
-          ./gradlew assembleDebug --stacktrace
-        else
-          gradle assembleDebug --stacktrace
-        fi
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace --info
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: success()
       with:
-        name: app-debug
+        name: hand-gesture-control-apk
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
     
@@ -58,7 +50,26 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v1.0.${{ github.run_number }}
-        name: Release v1.0.${{ github.run_number }}
+        name: Hand Gesture Control v1.0.${{ github.run_number }}
+        body: |
+          ## Hand Gesture Control App
+          
+          ### Features:
+          - 👆 Point to tap/select - Hold finger still for 1 second
+          - ↔️ Swipe gestures - Scroll next/previous
+          - 🤏 Pinch zoom - Thumb + index finger (automatic)
+          - 🖐️ Activation gesture - Two fingers to enable
+          - ⏸️ Auto-pause - When hand not visible or out of range
+          - 🔋 Battery optimized - 15 FPS, process every 3rd frame
+          - 📱 Works offline - No internet needed
+          - 📷 Front camera only - Lower power consumption
+          
+          ### Installation:
+          1. Download app-debug.apk
+          2. Enable "Install from Unknown Sources" in Android settings
+          3. Install the APK
+          4. Grant Camera, Overlay, and Accessibility permissions
+          5. Start using hand gestures!
         files: app/build/outputs/apk/debug/app-debug.apk
         draft: false
         prerelease: false
