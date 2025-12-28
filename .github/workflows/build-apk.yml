@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK with Docker
 
 on:
   push:
@@ -13,50 +13,37 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
     
-    - name: Setup Gradle Wrapper
+    - name: Build APK using Docker
       run: |
-        gradle wrapper --gradle-version 8.2
-    
-    - name: Make gradlew executable
-      run: chmod +x gradlew
-    
-    - name: Create assets directory
-      run: mkdir -p app/src/main/assets
-    
-    - name: Download MediaPipe model
-      run: |
-        curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
-             -o app/src/main/assets/hand_landmarker.task
-    
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace --info
+        docker build -t hand-gesture-builder .
+        docker create --name temp-container hand-gesture-builder
+        docker cp temp-container:/app/app/build/outputs/apk/debug/app-debug.apk ./app-debug.apk
+        docker rm temp-container
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: success()
       with:
         name: hand-gesture-control-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 30
+        path: app-debug.apk
+        retention-days: 90
     
     - name: Create Release
-      if: success() && github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v1.0.${{ github.run_number }}
         name: Hand Gesture Control v1.0.${{ github.run_number }}
         body: |
-          ## Hand Gesture Control App
+          ## 👋 Hand Gesture Control App
           
-          ### Features:
+          Control your Android phone with hand gestures!
+          
+          ### ✨ Features:
           - 👆 Point to tap/select - Hold finger still for 1 second
-          - ↔️ Swipe gestures - Scroll next/previous
+          - ↔️ Swipe gestures - Scroll next/previous  
           - 🤏 Pinch zoom - Thumb + index finger (automatic)
           - 🖐️ Activation gesture - Two fingers to enable
           - ⏸️ Auto-pause - When hand not visible or out of range
@@ -64,13 +51,18 @@ jobs:
           - 📱 Works offline - No internet needed
           - 📷 Front camera only - Lower power consumption
           
-          ### Installation:
-          1. Download app-debug.apk
+          ### 📥 Installation:
+          1. Download `app-debug.apk` below
           2. Enable "Install from Unknown Sources" in Android settings
           3. Install the APK
           4. Grant Camera, Overlay, and Accessibility permissions
           5. Start using hand gestures!
-        files: app/build/outputs/apk/debug/app-debug.apk
+          
+          ### 📋 Requirements:
+          - Android 7.0 (API 24) or higher
+          - Front-facing camera
+          - Minimum 2GB RAM
+        files: app-debug.apk
         draft: false
         prerelease: false
       env:
