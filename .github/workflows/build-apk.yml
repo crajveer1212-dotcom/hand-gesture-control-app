@@ -18,12 +18,9 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
     
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
-      with:
-        gradle-version: 8.2
+    - name: Create local.properties
+      run: echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
     
     - name: Create assets directory
       run: mkdir -p app/src/main/assets
@@ -33,18 +30,31 @@ jobs:
         curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
              -o app/src/main/assets/hand_landmarker.task
     
-    - name: Build Debug APK
-      run: gradle assembleDebug --stacktrace --no-daemon
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Build with Gradle (direct)
+      run: |
+        export ANDROID_HOME=/usr/local/lib/android/sdk
+        export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
+        cd $GITHUB_WORKSPACE
+        chmod +x gradlew || true
+        if [ -f "gradlew" ]; then
+          ./gradlew assembleDebug --stacktrace
+        else
+          gradle assembleDebug --stacktrace
+        fi
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
     
     - name: Create Release
-      if: github.ref == 'refs/heads/main'
+      if: success() && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v1.0.${{ github.run_number }}
