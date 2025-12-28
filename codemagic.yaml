@@ -1,0 +1,38 @@
+workflows:
+  android-workflow:
+    name: Android Build
+    max_build_duration: 60
+    environment:
+      android_signing:
+        - keystore_reference
+      groups:
+        - google_play
+      vars:
+        PACKAGE_NAME: "com.handgesture.control"
+      java: 17
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      
+      - name: Download MediaPipe model
+        script: |
+          mkdir -p app/src/main/assets
+          curl -L "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" \
+               -o app/src/main/assets/hand_landmarker.task
+      
+      - name: Build Android release
+        script: |
+          ./gradlew assembleDebug
+    
+    artifacts:
+      - app/build/outputs/**/*.apk
+      - app/build/outputs/**/mapping.txt
+    
+    publishing:
+      email:
+        recipients:
+          - crajveer1212@gmail.com
+        notify:
+          success: true
+          failure: true
