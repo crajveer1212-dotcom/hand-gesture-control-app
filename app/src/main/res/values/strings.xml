@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Hand Gesture Control</string>
+    <string name="accessibility_service_description">Allows hand gesture control for tapping, swiping, and zooming using camera-based finger tracking</string>
+</resources>
